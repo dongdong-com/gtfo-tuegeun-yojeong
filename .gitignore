@@ -1,0 +1,26 @@
+# 이 PC의 실제 설정 (회사 URL/상점 ID 등) — 올리지 않는다
+local_config.py
+
+# 파이썬
+__pycache__/
+*.pyc
+
+# 실행 중 생기는 파일
+*.log
+scroll_capture.log
+
+# 이 PC의 경로를 가리키는 바로가기
+*.lnk
+
+# 업무 데이터/결과물 (분개 양식·저장한 표 등)
+*.xlsx
+*.xls
+*.csv
+*.tsv
+*.pcraft
+~$*
+
+# 임시/편집기
+*.bak
+.vscode/
+.idea/
