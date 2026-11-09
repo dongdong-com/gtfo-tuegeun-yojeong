@@ -127,6 +127,9 @@ class App(tk.Tk):
         ttk.Label(bar, text="양식 파일").pack(side="left")
         ttk.Entry(bar, textvariable=self.template, width=70).pack(side="left", padx=4)
         ttk.Button(bar, text="…", width=3, command=self._pick_tpl).pack(side="left")
+        ttk.Label(bar, foreground="gray",
+                  text="※ 정산 화면에서 '엑셀로 저장'을 누를 때 서식을 가져오는 양식 파일입니다 (저장 위치는 저장할 때 따로 고릅니다)"
+                  ).pack(side="left", padx=(10, 0))
 
         body = ttk.Panedwindow(self, orient="horizontal"); body.pack(fill="both", expand=True, padx=6, pady=6)
         self.nav = ttk.Treeview(body, show="tree", selectmode="browse")
