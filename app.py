@@ -35,7 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TEMPLATE = os.path.join(HERE, "문서 양식.xlsx")
 ASSETS = os.path.join(HERE, "assets")
 VERSION = "3.0"             # 기능을 고칠 때마다 올린다 (표시: 창 제목줄, 상단 헤더)
-BUILD_DATE = "2026-11-06"
+BUILD_DATE = "2026-11-09"
 APP_TITLE = f"퇴근요정 ver {VERSION} (GTFO: Gracefully Terminate Formal Obligations)"
 
 try:   # 작업표시줄에 python 아이콘 대신 GTFO 아이콘이 보이도록 별도 앱으로 등록
