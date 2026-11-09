@@ -1,4 +1,4 @@
-"""GTFO (Gracefully Terminate Formal Obligations)
+﻿"""GTFO (Gracefully Terminate Formal Obligations)
 PG 정산 캡처 → 엑셀 분개 양식 → 영림원 붙여넣기 도구 (100% 로컬 처리).
 
 메뉴 구조 (1depth > 2depth > 3depth, 2depth에서 바로 화면이 열리는 항목도 가능)
@@ -34,7 +34,7 @@ from page_vdi import VdiTablePage
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TEMPLATE = os.path.join(HERE, "문서 양식.xlsx")
 ASSETS = os.path.join(HERE, "assets")
-VERSION = "3.0"             # 기능을 고칠 때마다 올린다 (표시: 창 제목줄, 상단 헤더)
+VERSION = "3.1"             # 기능을 고칠 때마다 올린다 (표시: 창 제목줄, 상단 헤더)
 BUILD_DATE = "2026-11-09"
 APP_TITLE = f"퇴근요정 ver {VERSION} (GTFO: Gracefully Terminate Formal Obligations)"
 

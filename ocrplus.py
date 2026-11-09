@@ -24,6 +24,7 @@ VARIANTS_BIG = [(3.0, False, False)]
 _GAMMA_LUT = [int(255 * (v / 255) ** 1.8 + 0.5) for v in range(256)]
 
 last_bounds: list = []        # 마지막 read_words에서 찾은 열 경계 [(x0, x1), …] (열이 없으면 한 구간)
+last_vocab: set = set()       # 마지막 read_words에서 '어느 설정이든 한 번이라도 읽은' 단어들 (AI 보정이 OCR이 읽은 적 없는 글자로 바꾸는지 가려내는 데 쓴다)
 _PUNCT = set(".,:;!?()[]{}<>/-~%&+'\"·…@#*=_₩$")
 
 
@@ -45,6 +46,7 @@ def line_score(text: str) -> float:
         elif ch in ".,":
             s += 0.5                                     # 마침표/쉼표는 조금만 (엔진이 설정에 따라 떨어뜨리곤 한다). '-!/' 같은 부호는 0점
     s -= 3.0 * len(re.findall(r"\d[가-힣]\d", text))      # 1예0억 처럼 숫자 사이에 낀 한글은 오인식
+    s -= 3.0 * len(re.findall(r"[가-힣][0-9A-Za-z]{1,3}[가-힣]", text))   # 하0H기 처럼 한글 사이에 낀 숫자/영문도 오인식 (한글 '애'가 'o'+'H'로 읽히는 식)
     s -= 2.5 * len(re.findall(r"(?<=[a-z])[Il](?=[A-Z])|(?<=[a-z])I+(?=[a-z])", text))   # Hello → HeIIo 처럼 소문자 사이의 대문자 I
     return s - 2.0 * len(text.split())                 # 단어가 잘게 쪼개진 후보('생산 품질부문')보다 붙은 후보를 선호
 
@@ -93,9 +95,16 @@ def _columns(img, words):
     return spans if len(spans) >= 2 else [(-1e9, 1e9)]
 
 
+_DIGRAPH = re.compile(r"(?<=[가-힣(\[])[0oO][Hh](?=[가-힣)\]])")          # 한글 사이의 'oH'/'0H' → 한글 '애' ('애'의 ㅇ+ㅐ가 두 글자로 읽힘)
+
+
+def _fix_digraphs(words):
+    return [((_DIGRAPH.sub("애", w[0]),) + tuple(w[1:])) if _DIGRAPH.search(w[0]) else w for w in words]
+
+
 def _lines_of(words):
     out = []
-    for ln in core.cluster_rows(words):
+    for ln in core.cluster_rows(_fix_digraphs(words)):
         ln = [x for x in ln if sum(1 for c in x[0] if not _is_valid(c)) * 2 < len(x[0])]   # 아이콘이 만든 기호 위주 단어는 버린다 (立, 그云1夕`하 …)
         if not ln:
             continue
@@ -153,8 +162,20 @@ def _pick(lines, min_alnum: int = 2):
                     if (top != w[0] and n > votes[w[0]] and w[0].rstrip(".,") != top    # 마침표만 다른 경우는 다수결로 지우지 않는다
                             and line_score(top) >= line_score(w[0])):                   # 다수결이 더 '글자다울' 때만 따른다 (HeIIo 다수 → Hello 소수)
                         w = (top,) + tuple(w[1:])
-                        w = (top,) + tuple(w[1:])
                     new.append(w)
+                words = new
+            if len(same) >= 3:                                       # 글자 수가 같은 후보끼리는 글자 단위 다수결 (율/을처럼 한 글자만 갈리는 경우)
+                new = []
+                for i, w in enumerate(words):
+                    cands = [l["w"][i][0] for l in same if len(l["w"][i][0]) == len(w[0])]
+                    chars = list(w[0])
+                    if len(cands) >= 3:
+                        for p in range(len(chars)):
+                            votes = Counter(c[p] for c in cands)
+                            top, n = votes.most_common(1)[0]
+                            if top != chars[p] and n > votes[chars[p]] and n >= 2 and _is_valid(top):
+                                chars[p] = top
+                    new.append((("".join(chars)),) + tuple(w[1:]))
                 words = new
             chosen.append(words)
     return chosen
@@ -181,7 +202,8 @@ def read_words(img, scale: float = 3.0, sharp: bool = True, lang: str = "ko", pr
     if not union:
         return []
     out = []
-    global last_bounds
+    global last_bounds, last_vocab
+    last_vocab = {w[0] for r in runs for w in _fix_digraphs(r)}
     last_bounds = _columns(img, union)
     for lo, hi in last_bounds:
         cand = []

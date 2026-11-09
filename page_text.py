@@ -148,6 +148,97 @@ def _compose(words: list, mode: str, tidy: bool, multicol: bool, bounds=None) ->
     return "\n".join(out)
 
 
+def _changed_chars(o: str, n: str) -> int:
+    """두 단어에서 서로 달라진 글자 수 (길이가 긴 쪽 − 맞는 글자 수)."""
+    import difflib
+    m = difflib.SequenceMatcher(None, o, n, autojunk=False)
+    return max(len(o), len(n)) - sum(b.size for b in m.get_matching_blocks())
+
+
+def _guard_tokens(old_line: str, new_line: str, vocab: set, rejected: list) -> str:
+    """한 줄 안에서 단어별로 AI 변경을 받아들일지 정한다 (guard_ai_text 참고)."""
+    import difflib
+    import tablegrid
+    weird = lambda t: tablegrid._weird_token(t.replace("[", "").replace("]", ""))        # 대괄호는 정상 기호
+    no_hangul = lambda *ts: not any("가" <= c <= "힣" for t in ts for c in t)
+    a, b = old_line.split(), new_line.split()
+    out = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        old, new = a[i1:i2], b[j1:j2]
+        if tag == "equal":
+            out += old
+            continue
+        if tag == "insert":
+            out += new                                              # 빠진 글자 추가
+            continue
+        pairs, oi = [], 0                                           # (초안 단어, AI 단어): 비슷한 단어끼리 짝짓고 나머지는 추가/삭제
+        for nt in new:
+            hit = next((k for k in range(oi, len(old)) if difflib.SequenceMatcher(None, old[k], nt).ratio() >= 0.5), None)
+            if hit is None:
+                pairs.append((None, nt))
+            else:
+                pairs += [(x, None) for x in old[oi:hit]]
+                pairs.append((old[hit], nt)); oi = hit + 1
+        pairs += [(x, None) for x in old[oi:]]
+        for o, n in pairs:
+            if o is None:
+                out.append(n)
+            elif n is None:
+                if weird(o):
+                    continue                                        # 잡글자 삭제는 받아들인다
+                out.append(o)
+                rejected.append((o, ""))                            # 멀쩡한 단어 삭제는 되돌린다
+            elif o == n or weird(o) or no_hangul(o, n) or n in vocab or _changed_chars(o, n) >= 3:
+                out.append(n)                                       # 잡글자 교정 / 영문·숫자만(로고) / OCR이 읽은 적 있는 단어 / 3글자 이상 크게 다시 쓴 것(OCR이 쓰레기였다는 뜻)
+            else:
+                out.append(o)
+                rejected.append((o, n))                             # 한두 글자만 바꾼 근거 없는 교체 (율→울)
+    return " ".join(out)
+
+
+def guard_ai_text(draft: str, ai: str, vocab: set):
+    """AI 보정 결과에서 '근거 없는' 글자 교체를 되돌린다. → (최종 텍스트, 되돌린 변경 [(초안, AI)…])
+    AI는 희귀한 글자를 흔한 글자로 바꾸는 버릇이 있어(`율하애기보살`→`울하애기보살`) 맞는 OCR 값을 틀리게 고치곤 한다.
+    줄을 먼저 맞춰 본 뒤(초안 줄 ↔ AI 줄) 단어별로 다음일 때만 변경을 받아들인다:
+      - 새 글자·새 줄 추가 (로고·작은 글자·날짜가 초안에 빠졌던 경우)
+      - 초안 단어가 '지어낸 글자'(한자, 한글+영문/숫자 혼합, 이상한 기호)이거나 잡글자 삭제
+      - 영문·숫자만 바뀐 경우(로고) — 한글 정규화 문제가 없다
+      - AI가 쓴 단어를 OCR이 다른 설정으로 읽은 적이 있는 경우(후보 중에서 고른 것)
+      - 3글자 이상 달라진 큰 재작성 (OCR이 쓰레기를 읽었다는 신호. 한두 글자만 바꾼 근거 없는 교체와 구별)
+    그 밖의 '한두 글자만 OCR이 읽은 적 없는 글자로 바꾸는' 변경과 멀쩡한 단어 삭제는 되돌린다."""
+    import difflib
+    dl = draft.split("\n")
+    nb = [i for i, l in enumerate(dl) if l.strip()]                  # 초안의 비어 있지 않은 줄 번호
+    d_lines = [dl[i] for i in nb]
+    a_lines = [l for l in ai.split("\n") if l.strip()]
+    rejected: list = []
+    items: list = []                                                 # (초안 줄 번호 또는 None, 최종 줄 글자)
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, d_lines, a_lines, autojunk=False).get_opcodes():
+        old, new = d_lines[i1:i2], a_lines[j1:j2]
+        if tag == "equal":
+            items += [(nb[i1 + k], l) for k, l in enumerate(old)]
+            continue
+        oi = 0                                                       # 줄 짝짓기: AI 줄마다 비슷한(40%↑) 초안 줄을 순서대로 찾는다
+        for nl in new:
+            hit = next((k for k in range(oi, len(old)) if difflib.SequenceMatcher(None, old[k], nl).ratio() >= 0.4), None)
+            if hit is None:
+                items.append((None, nl))                             # 새 줄 추가
+            else:
+                items += [(nb[i1 + k], old[k]) for k in range(oi, hit)]          # 짝이 없는 초안 줄(AI가 지운 줄)은 일단 유지
+                items.append((nb[i1 + hit], _guard_tokens(old[hit], nl, vocab, rejected))); oi = hit + 1
+        items += [(nb[i1 + k], old[k]) for k in range(oi, len(old))]
+    out, pend, last = [], [], -1                                     # 초안의 빈 줄(카드 구분 등)을 되살려 다시 조립
+    for idx, text in items:
+        if idx is None:
+            pend.append(text)
+            continue
+        out += pend; pend = []
+        out += [""] * max(0, idx - last - 1)
+        out.append(text); last = idx
+    out += pend
+    return "\n".join(out).strip("\n"), rejected
+
+
 class TextExtractPage(VdiTablePage):
     TITLE = "텍스트 캡쳐하기"
     URL_TOOLS = False
@@ -164,6 +255,8 @@ class TextExtractPage(VdiTablePage):
         self.tidy = tk.BooleanVar(value=True)
         self.multicol = tk.BooleanVar(value=True)             # 카드/단이 나란히 있어도 섞이지 않게 기본 켬
         self.col_bounds = None
+        self.ocr_vocab: set = set()
+        self.ai_free = tk.BooleanVar(value=False)             # AI가 OCR이 읽은 적 없는 글자로도 고치게 할지 (기본 꺼짐: 맞는 값을 망치지 않게)
         self.fix_en = tk.BooleanVar(value=True)
         self.auto_invert = tk.BooleanVar(value=True)
         self.auto_copy = tk.BooleanVar(value=True)
@@ -177,6 +270,7 @@ class TextExtractPage(VdiTablePage):
         words = ocrplus.read_words(img, scale=float(self.ocr_scale.get()), sharp=self.ocr_sharp.get(),
                                    lang=self._ocr_lang(), progress=progress)
         self.col_bounds = ocrplus.last_bounds
+        self.ocr_vocab = set(ocrplus.last_vocab)             # AI 보정 결과를 걸러내는 데 쓴다 (guard_ai_text)
         return words
 
     def _ocr_lang(self) -> str:
@@ -253,7 +347,8 @@ class TextExtractPage(VdiTablePage):
         self.btn_ai.pack(side="left")
         self.btn_undo = ttk.Button(r3, text="AI 보정 되돌리기", command=self.ai_undo, state="disabled")
         self.btn_undo.pack(side="left", padx=6)
-        ttk.Label(r3, text="이 PC의 로컬 AI(Gemma 4 E2B)가 이미지를 보고 고칩니다 · 10~30초 · 바뀐 줄은 노란색",
+        ttk.Checkbutton(r3, text="새 글자로도 고치기(공격적)", variable=self.ai_free).pack(side="left", padx=(0, 6))
+        ttk.Label(r3, text="로컬 AI가 이미지를 보고 고칩니다 · 10~30초 · 바뀐 줄은 노란색 · 기본은 OCR이 읽은 적 있는 글자·잡글자·빠진 글자만 반영",
                   foreground="gray").pack(side="left")
         self.txt = tk.Text(rt, wrap="word", height=14, undo=True, font=("맑은 고딕", 10))
         self.txt.tag_configure("chg", background="#FEEC95")
@@ -362,6 +457,9 @@ class TextExtractPage(VdiTablePage):
             fixed = aillm.clean_answer(res)
             if not fixed:
                 self.status.set("AI가 빈 결과를 돌려줬습니다. 원문을 유지합니다."); return
+            held = []
+            if not self.ai_free.get():                           # 근거 없는 글자 교체(율→울 같은 희귀 글자 정규화)는 되돌린다
+                fixed, held = guard_ai_text(draft, fixed, self.ocr_vocab)
             old = set(l.strip() for l in draft.splitlines())
             self.txt.delete("1.0", "end")
             n = 0
@@ -370,7 +468,10 @@ class TextExtractPage(VdiTablePage):
                 self.txt.insert("end", line + "\n", ("chg",) if changed else ())
                 n += changed
             self.btn_undo.config(state="normal")
-            self.status.set(f"AI 보정 완료 · {time.time() - t0:.0f}초 · 바뀐/추가된 줄 {n}개(노란색) — 확인 후 사용하세요")
+            msg = f"AI 보정 완료 · {time.time() - t0:.0f}초 · 바뀐/추가된 줄 {n}개(노란색)"
+            if held:
+                msg += f" · 근거 없는 변경 {len(held)}건 보류(" + ", ".join(f"{o}→{nw}" if nw else f"{o} 삭제" for o, nw in held[:3]) + (" …" if len(held) > 3 else "") + ")"
+            self.status.set(msg + " — 확인 후 사용하세요")
             if self.auto_copy.get():
                 self.clipboard_clear(); self.clipboard_append(fixed); self.update()
 
