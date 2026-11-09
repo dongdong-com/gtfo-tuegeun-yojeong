@@ -12,6 +12,7 @@ import json
 import os
 import queue
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -21,7 +22,20 @@ from PIL import Image
 
 HOST = "http://127.0.0.1:11434"
 MODEL = "gemma4:e2b"
-OLLAMA_EXE = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe")
+def _find_ollama() -> str:
+    """Ollama 실행 파일 경로 (없으면 빈 문자열). Windows: 사용자 설치 위치 / macOS: Homebrew·앱 번들·PATH."""
+    import shutil
+    if sys.platform == "win32":
+        return os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe")
+    for p in ("/opt/homebrew/bin/ollama", "/usr/local/bin/ollama", "/Applications/Ollama.app/Contents/Resources/ollama"):
+        if os.path.exists(p):
+            return p
+    return shutil.which("ollama") or ""
+
+
+OLLAMA_EXE = _find_ollama()
+INSTALL_HINT = ("winget install Ollama.Ollama" if sys.platform == "win32"
+                else "brew install ollama  (또는 https://ollama.com/download 에서 Ollama.app 설치)")
 
 
 class AIError(Exception):
@@ -46,10 +60,11 @@ def ensure_server(wait: float = 20.0) -> None:
     """Ollama 서버가 꺼져 있으면 숨김 창으로 켠다. 설치가 안 되어 있으면 AIError."""
     if server_up():
         return
-    if not os.path.exists(OLLAMA_EXE):
-        raise AIError("Ollama가 설치되어 있지 않습니다.\n설치: winget install Ollama.Ollama  →  ollama pull " + MODEL)
+    if not OLLAMA_EXE or not os.path.exists(OLLAMA_EXE):
+        raise AIError(f"Ollama가 설치되어 있지 않습니다.\n설치: {INSTALL_HINT}  →  ollama pull " + MODEL)
     try:
-        subprocess.Popen([OLLAMA_EXE, "serve"], creationflags=0x08000000,          # CREATE_NO_WINDOW
+        flags = {"creationflags": 0x08000000} if sys.platform == "win32" else {}   # CREATE_NO_WINDOW
+        subprocess.Popen([OLLAMA_EXE, "serve"], **flags,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
     except OSError as ex:
         raise AIError(f"Ollama를 시작하지 못했습니다: {ex}")

@@ -8,6 +8,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -90,7 +91,9 @@ def _cut_near_end(ink: np.ndarray, lo: int, hi: int) -> int:
 
 
 def _font(size: int):
-    for p in (r"C:\Windows\Fonts\malgun.ttf", r"C:\Windows\Fonts\arial.ttf"):
+    for p in (r"C:\Windows\Fonts\malgun.ttf", r"C:\Windows\Fonts\arial.ttf",
+              "/System/Library/Fonts/AppleSDGothicNeo.ttc", "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+              "/System/Library/Fonts/Supplemental/Arial.ttf"):
         try:
             return ImageFont.truetype(p, size)
         except OSError:
@@ -151,8 +154,28 @@ def paginate(img: Image.Image, mode: str = "폭에 맞춰 여러 쪽", landscape
     return out
 
 
+def _launch_mac(pages: list[Image.Image], landscape: bool, title: str):
+    """macOS: 쪽 그림을 A4 PDF로 만들어 '미리보기(Preview)' 앱으로 연다. 거기서 ⌘P 로 프린터를 골라 인쇄한다."""
+    dpi = 200
+    pw, ph = (int(11.69 * dpi), int(8.27 * dpi)) if landscape else (int(8.27 * dpi), int(11.69 * dpi))
+    m = int(0.5 * dpi)                                           # 윈도우 인쇄와 같은 0.5인치 여백
+    sheets = []
+    for p in pages:
+        k = min((pw - 2 * m) / p.width, (ph - 2 * m) / p.height)
+        q = p.resize((max(1, int(p.width * k)), max(1, int(p.height * k))), Image.LANCZOS)
+        sheet = Image.new("RGB", (pw, ph), "white")
+        sheet.paste(q, ((pw - q.width) // 2, m))
+        sheets.append(sheet)
+    safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in title).strip() or "gtfo"
+    path = os.path.join(tempfile.mkdtemp(prefix="gtfo_print_"), f"{safe}.pdf")    # 임시 폴더는 macOS가 알아서 비운다
+    sheets[0].save(path, "PDF", save_all=True, append_images=sheets[1:], resolution=float(dpi))
+    return subprocess.Popen(["open", "-a", "Preview", path])
+
+
 def _launch(pages: list[Image.Image], landscape: bool, direct: bool, title: str):
     """쪽 그림을 임시 폴더에 저장하고 PowerShell(STA)로 미리보기/인쇄 대화상자를 연다. 끝나면 임시 파일을 지운다."""
+    if sys.platform == "darwin":
+        return _launch_mac(pages, landscape, title)
     tmp = tempfile.mkdtemp(prefix="gtfo_print_")
     paths = []
     for i, p in enumerate(pages, 1):
@@ -235,4 +258,6 @@ class PrintDialog(tk.Toplevel):
         except Exception as ex:
             messagebox.showerror("인쇄", f"인쇄 창을 열지 못했습니다.\n{ex}", parent=self)
             return
+        if sys.platform == "darwin" and direct:
+            messagebox.showinfo("인쇄", "미리보기(Preview) 앱에서 열렸습니다.\n⌘P 를 눌러 프린터를 고르고 인쇄하세요.", parent=self)
         self.destroy()

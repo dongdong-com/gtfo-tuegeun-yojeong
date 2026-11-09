@@ -2,6 +2,7 @@
 import asyncio
 import io
 import re
+import sys
 from copy import copy
 from dataclasses import dataclass
 
@@ -13,6 +14,9 @@ from PIL import Image, ImageFilter, ImageOps
 # ---------------------------------------------------------------- OCR
 def ocr_languages() -> list[tuple[str, str]]:
     """이 PC에 설치된 OCR 언어 [(언어 태그, 표시 이름)]. Windows 설정 > 시간 및 언어 > 언어에서 언어팩(OCR 포함)을 설치하면 늘어난다."""
+    if sys.platform == "darwin":                  # macOS: Apple Vision
+        import ocr_mac
+        return ocr_mac.languages()
     try:
         from winrt.windows.media.ocr import OcrEngine
         return [(l.language_tag, l.display_name) for l in OcrEngine.available_recognizer_languages]
@@ -23,11 +27,6 @@ def ocr_languages() -> list[tuple[str, str]]:
 async def _recognize(img: Image.Image, scale: float = 2.0, sharp: bool = False, lang: str = "ko") -> list:
     """OCR 단어 목록 [(text, x, y중심, 높이, 너비)] — 좌표는 입력 이미지 기준(배율 복원).
     lang: OCR 언어 태그('ko', 'en-US' …) 또는 'auto'(사용자 프로필 언어)."""
-    from winrt.windows.globalization import Language
-    from winrt.windows.graphics.imaging import BitmapDecoder
-    from winrt.windows.media.ocr import OcrEngine
-    from winrt.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
-
     # 흑백+대비 보정이 인식률에 큰 영향. 엔진 최대 크기 제한이 있어 배율을 제한한다.
     g = ImageOps.autocontrast(img.convert("L"))
     scale = min(scale, 2400 / max(g.width, g.height))
@@ -38,6 +37,14 @@ async def _recognize(img: Image.Image, scale: float = 2.0, sharp: bool = False, 
     big = big.convert("RGB")
     buf = io.BytesIO()
     big.save(buf, "PNG")
+    if sys.platform == "darwin":                  # macOS: Apple Vision (좌표는 확대한 이미지 기준 → 배율 복원)
+        import ocr_mac
+        return [(t, x / scale, y / scale, h / scale, w / scale)
+                for t, x, y, h, w in ocr_mac.recognize(buf.getvalue(), big.width, big.height, lang)]
+    from winrt.windows.globalization import Language
+    from winrt.windows.graphics.imaging import BitmapDecoder
+    from winrt.windows.media.ocr import OcrEngine
+    from winrt.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
     stream = InMemoryRandomAccessStream()
     writer = DataWriter(stream.get_output_stream_at(0))
     writer.write_bytes(buf.getvalue())

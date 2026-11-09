@@ -107,8 +107,10 @@ class TextPicker(tk.Toplevel):
         self.cv.bind("<ButtonPress-1>", self._down)
         self.cv.bind("<B1-Motion>", self._move)
         self.cv.bind("<ButtonRelease-1>", self._up)
-        self.cv.bind("<MouseWheel>", lambda e: self.cv.yview_scroll(-3 * (e.delta // 120), "units"))
-        self.cv.bind("<Shift-MouseWheel>", lambda e: self.cv.xview_scroll(-3 * (e.delta // 120), "units"))
+        import sys
+        step = (lambda e: -e.delta) if sys.platform == "darwin" else (lambda e: -3 * (e.delta // 120))   # macOS는 delta가 작은 정수
+        self.cv.bind("<MouseWheel>", lambda e: self.cv.yview_scroll(step(e), "units"))
+        self.cv.bind("<Shift-MouseWheel>", lambda e: self.cv.xview_scroll(step(e), "units"))
 
     # ------------------------------------------------------------ 화면
     def _clear_sel(self):

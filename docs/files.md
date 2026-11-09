@@ -21,7 +21,9 @@
 | `scrollcap.py` | 자동 스크롤 캡처, 프레임 정합·이어붙이기, 이미지 클립보드 복사 |
 | `text_picker.py` | 캡처 이미지에서 드래그한 부분/전체를 OCR해 텍스트로 복사 |
 | `ocrplus.py` | 일반 텍스트·표용 정밀 OCR: 여러 배율·선명화·어둡게로 읽고 열/줄 단위로 가장 좋은 결과 선택 |
-| `taskbar_id.py` | 작업표시줄 고정 항목에 퇴근요정 아이콘·이름 표시 |
+| `sysinput_win.py` / `sysinput_mac.py` | OS별 마우스·키 입력, 창 제어, 화면 캡처, 이미지 클립보드 (Windows: user32 / macOS: Quartz) |
+| `ocr_mac.py` | macOS OCR (Apple Vision) |
+| `taskbar_id.py` | 작업표시줄 고정 항목에 퇴근요정 아이콘·이름 표시 (Windows) |
 | `urlrec.py` | OCR 단어 → (순번, 원본 URL, 단축 URL) 레코드 조립 |
 | `urlfix.py` | 원본 URL 구조 보정 (호스트/경로/파라미터) |
 | `idfix.py` | 단축 URL ID 글자 모양 보정, I/l 모호 표시 |
@@ -33,4 +35,6 @@
 | `config.py`, `local_config.example.py` | 환경 값(단축 URL 서버, 상점 ID 등)의 기본값 / 예시 (`local_config.py`는 git에 올리지 않음) |
 | `LICENSE` | MIT 라이선스 |
 | `docs/`, `CHANGELOG.md` | 기능별 자세한 문서 / 변경 이력 |
-| `requirements.txt`, `run.bat` | 설치 목록 / 실행 |
+| `requirements.txt`, `run.bat` | 설치 목록(OS별 조건부) / Windows 실행 |
+| `install_mac.sh`, `run.command` | macOS 설치(가상환경) / 실행 |
+| `.gitattributes` | 맥 스크립트의 줄바꿈을 LF로 고정 |

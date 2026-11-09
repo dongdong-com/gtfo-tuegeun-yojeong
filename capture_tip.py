@@ -7,22 +7,27 @@
  - 활성화되지 않음 (WS_EX_NOACTIVATE) — VDI 창의 포커스를 빼앗지 않는다
  - 커서에서 조금 떨어진 곳에 표시 (커서를 가리지 않도록)
 """
-import ctypes
 import os
 import re
+import sys
 import tkinter as tk
 
+import scrollcap
 import theme
 
-user32 = ctypes.windll.user32
-user32.GetWindowLongPtrW.argtypes = [ctypes.c_void_p, ctypes.c_int]
-user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
-user32.SetWindowLongPtrW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_ssize_t]
-user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
-user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
-user32.GetAncestor.restype = ctypes.c_void_p
-user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
-user32.SetWindowDisplayAffinity.restype = ctypes.c_int
+IS_WIN = sys.platform == "win32"
+
+if IS_WIN:
+    import ctypes
+    user32 = ctypes.windll.user32
+    user32.GetWindowLongPtrW.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+    user32.SetWindowLongPtrW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_ssize_t]
+    user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
+    user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+    user32.GetAncestor.restype = ctypes.c_void_p
+    user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+    user32.SetWindowDisplayAffinity.restype = ctypes.c_int
 
 GWL_EXSTYLE = -20
 WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE = 0x00080000, 0x00000020, 0x00000080, 0x08000000
@@ -32,14 +37,8 @@ ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 LINES = ("퇴근요정이 화면캡쳐중입니다.", "잠시만 기다려주세요")
 
 
-class _POINT(ctypes.Structure):
-    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
-
-
 def _cursor():
-    p = _POINT()
-    user32.GetCursorPos(ctypes.byref(p))
-    return p.x, p.y
+    return scrollcap.get_cursor()
 
 
 class CaptureTip:
@@ -68,12 +67,20 @@ class CaptureTip:
         self.status.pack(anchor="w", pady=(2, 0))
 
         self.win.update_idletasks()
-        self.hwnd = user32.GetAncestor(self.win.winfo_id(), 2) or self.win.winfo_id()
-        ex = user32.GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE)
-        user32.SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE,
-                                 ex | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
-        # 캡처에서 제외. 실패(구버전 Windows)하면 캡처 순간에만 숨기는 방식으로 대신한다.
-        self.excluded = bool(user32.SetWindowDisplayAffinity(self.hwnd, WDA_EXCLUDEFROMCAPTURE))
+        if IS_WIN:
+            self.hwnd = user32.GetAncestor(self.win.winfo_id(), 2) or self.win.winfo_id()
+            ex = user32.GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE)
+            user32.SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE,
+                                     ex | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
+            # 캡처에서 제외. 실패(구버전 Windows)하면 캡처 순간에만 숨기는 방식으로 대신한다.
+            self.excluded = bool(user32.SetWindowDisplayAffinity(self.hwnd, WDA_EXCLUDEFROMCAPTURE))
+        else:
+            # macOS: 포커스를 가져가지 않는 창 스타일. 캡처 제외는 못 하므로 캡처 순간에만 숨긴다 (install_grab_hook)
+            self.hwnd, self.excluded = None, False
+            try:
+                self.win.tk.call("::tk::unsupported::MacWindowStyle", "style", self.win._w, "help", "noActivates")
+            except tk.TclError:
+                pass
         self._orig_grab = None
         self.tick()
 
@@ -81,8 +88,7 @@ class CaptureTip:
     def tick(self):
         """커서 옆으로 위치를 맞춘다 (pump에서 자주 불러도 위치가 같으면 아무것도 하지 않는다)."""
         x, y = _cursor()
-        gm = user32.GetSystemMetrics
-        vx, vy, vw, vh = gm(76), gm(77), gm(78), gm(79)
+        vx, vy, vw, vh = scrollcap.virtual_screen()
         w, h = self.win.winfo_reqwidth(), self.win.winfo_reqheight()
         px, py = x + self.offset[0], y + self.offset[1]
         if px + w > vx + vw:                       # 화면 오른쪽/아래를 넘으면 반대쪽으로
@@ -109,6 +115,10 @@ class CaptureTip:
 
         def grab(box):
             self.win.attributes("-alpha", 0.0)
+            if not IS_WIN:                       # macOS는 투명해진 것이 화면에 반영된 뒤에 찍어야 한다
+                self.win.update()
+                import time
+                time.sleep(0.06)
             try:
                 return self._orig_grab(box)
             finally:

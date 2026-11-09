@@ -1,27 +1,35 @@
 """여러 화면(페이지)이 공유하는 UI 도구: 화면 영역 선택 + 로컬 OCR."""
-import ctypes
+import sys
 import time
 import tkinter as tk
 from tkinter import messagebox
 
-from PIL import ImageGrab
-
 import core
+import scrollcap
 
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # 캡처 좌표와 화면 좌표 일치
-except Exception:
-    pass
+IS_MAC = sys.platform == "darwin"
+
+if sys.platform == "win32":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # 캡처 좌표와 화면 좌표 일치
+    except Exception:
+        pass
 
 
 def select_region(root):
     """모든 모니터(가상 화면 전체)를 반투명 오버레이로 덮고 드래그로 영역 선택. (x1,y1,x2,y2) 또는 None.
     좌표는 가상 화면 기준이라 주 모니터 왼쪽/위쪽 모니터는 음수가 될 수 있다."""
     result = {}
-    gm = ctypes.windll.user32.GetSystemMetrics
-    vx, vy, vw, vh = gm(76), gm(77), gm(78), gm(79)        # SM_X/Y/CXVIRTUALSCREEN
+    vx, vy, vw, vh = scrollcap.virtual_screen()
     top = tk.Toplevel(root)
-    top.overrideredirect(True)
+    if IS_MAC:      # macOS: overrideredirect 창은 키 입력(ESC)을 못 받으므로 테두리 없는 일반 창 스타일을 쓴다
+        try:
+            top.tk.call("::tk::unsupported::MacWindowStyle", "style", top._w, "plain", "none")
+        except tk.TclError:
+            top.overrideredirect(True)
+    else:
+        top.overrideredirect(True)
     top.geometry(f"{vw}x{vh}{vx:+d}{vy:+d}")
     top.attributes("-alpha", 0.3, "-topmost", True)
     top.configure(bg="black", cursor="crosshair")
@@ -56,7 +64,7 @@ def capture_image(widget):
     root.withdraw(); root.update(); time.sleep(0.25)
     try:
         box = select_region(root)
-        return ImageGrab.grab(bbox=box, all_screens=True) if box else None
+        return scrollcap._grab(box) if box else None
     finally:
         root.deiconify()
 

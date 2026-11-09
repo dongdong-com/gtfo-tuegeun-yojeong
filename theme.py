@@ -20,7 +20,10 @@ CREAM = "#FFF9F7"        # 창 바탕
 LINE = "#F3C4C8"         # 테두리
 DISABLED = "#C9CFDC"
 
-FONT = ("맑은 고딕", 9)
+import sys
+
+# macOS는 맑은 고딕이 없다 → 애플 SD 산돌고딕. (글꼴 크기 pt는 apply()에서 화면 배율을 Windows와 같게 맞춘다)
+FONT = ("Apple SD Gothic Neo", 9) if sys.platform == "darwin" else ("맑은 고딕", 9)
 
 
 def _check_box(size: int, checked: bool, border: str, fill: str, mark: str = "white"):
@@ -67,6 +70,11 @@ def _check_images(root: tk.Tk, st: ttk.Style):
 
 
 def apply(root: tk.Tk):
+    if sys.platform == "darwin":       # macOS Tk는 72dpi 기준이라 같은 pt가 작게 보인다 → Windows(96dpi)와 같은 크기로
+        try:
+            root.tk.call("tk", "scaling", 96 / 72)
+        except tk.TclError:
+            pass
     root.configure(bg=CREAM)
     st = ttk.Style(root)
     try:

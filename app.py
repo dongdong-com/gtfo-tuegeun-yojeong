@@ -1,4 +1,4 @@
-﻿"""GTFO (Gracefully Terminate Formal Obligations)
+"""GTFO (Gracefully Terminate Formal Obligations)
 PG 정산 캡처 → 엑셀 분개 양식 → 영림원 붙여넣기 도구 (100% 로컬 처리).
 
 메뉴 구조 (1depth > 2depth > 3depth, 2depth에서 바로 화면이 열리는 항목도 가능)
@@ -17,10 +17,13 @@ PG 정산 캡처 → 엑셀 분개 양식 → 영림원 붙여넣기 도구 (100
 페이지 클래스를 직접 주면 2depth에서 바로 화면이 열린다.
 """
 import os
+import sys
 import tkinter as tk
 from tkinter import filedialog, ttk
 
 import ctypes
+
+IS_WIN = sys.platform == "win32"
 
 import ui_common  # noqa: F401  (DPI 설정)
 import theme
@@ -34,14 +37,15 @@ from page_vdi import VdiTablePage
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TEMPLATE = os.path.join(HERE, "문서 양식.xlsx")
 ASSETS = os.path.join(HERE, "assets")
-VERSION = "3.1"             # 기능을 고칠 때마다 올린다 (표시: 창 제목줄, 상단 헤더)
+VERSION = "3.2"             # 기능을 고칠 때마다 올린다 (표시: 창 제목줄, 상단 헤더)
 BUILD_DATE = "2026-11-09"
 APP_TITLE = f"퇴근요정 ver {VERSION} (GTFO: Gracefully Terminate Formal Obligations)"
 
-try:   # 작업표시줄에 python 아이콘 대신 GTFO 아이콘이 보이도록 별도 앱으로 등록
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(__import__('config').APP_ID)
-except Exception:
-    pass
+if IS_WIN:
+    try:   # 작업표시줄에 python 아이콘 대신 GTFO 아이콘이 보이도록 별도 앱으로 등록
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(__import__('config').APP_ID)
+    except Exception:
+        pass
 
 # (1depth, [(2depth, [(3depth, 페이지클래스), ...]) 또는 (2depth, 페이지클래스), ...])
 MENU = [
@@ -76,17 +80,20 @@ class App(tk.Tk):
         self.leaf = {}        # iid -> 페이지 클래스
         self._ui()
         self.update_idletasks()
-        try:   # 작업표시줄 고정 항목에 python 대신 퇴근요정 아이콘/이름이 보이게 한다
-            import taskbar_id
-            hwnd = ctypes.windll.user32.GetParent(self.winfo_id()) or self.winfo_id()
-            taskbar_id.apply(hwnd, HERE, os.path.join(ASSETS, "icon.ico"))
-        except Exception:
-            pass
+        if IS_WIN:
+            try:   # 작업표시줄 고정 항목에 python 대신 퇴근요정 아이콘/이름이 보이게 한다
+                import taskbar_id
+                hwnd = ctypes.windll.user32.GetParent(self.winfo_id()) or self.winfo_id()
+                taskbar_id.apply(hwnd, HERE, os.path.join(ASSETS, "icon.ico"))
+            except Exception:
+                pass
 
     def _set_icon(self):
-        """창/작업표시줄/Alt+Tab 아이콘(저해상도 캐릭터). 하위 창(텍스트 선택 등)도 같은 아이콘을 쓴다."""
+        """창/작업표시줄/Alt+Tab(macOS는 Dock) 아이콘(저해상도 캐릭터). 하위 창(텍스트 선택 등)도 같은 아이콘을 쓴다."""
         ico = os.path.join(ASSETS, "icon.ico")
         try:
+            if not IS_WIN:
+                raise tk.TclError("ico는 Windows 전용")
             self.iconbitmap(default=ico)
         except tk.TclError:
             try:

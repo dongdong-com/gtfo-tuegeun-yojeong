@@ -7,15 +7,16 @@
 
 <p align="center">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.12-3776AB">
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-13%2B%20(%EC%8B%A0%EA%B7%9C)-555555">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB">
   <img alt="License" src="https://img.shields.io/badge/License-MIT-green">
   <img alt="Local only" src="https://img.shields.io/badge/처리-100%25%20로컬-F56B76">
 </p>
 
-**화면을 캡처하면 글자와 표를 읽어서, 엑셀·ERP에 붙여넣을 수 있는 형태로 바꿔 주는 Windows 데스크톱 앱**입니다.
+**화면을 캡처하면 글자와 표를 읽어서, 엑셀·ERP에 붙여넣을 수 있는 형태로 바꿔 주는 데스크톱 앱**입니다 (Windows, macOS).
 API가 없는 프로그램, 복사가 막힌 웹페이지, VDI(가상 PC) 화면처럼 **화면 픽셀로만 읽을 수 있는 곳**에서 일할 때를 위해 만들었습니다.
 
-- 🔒 **100% 로컬 처리** — 화면 이미지는 PC 밖으로 나가지 않습니다 (Windows 내장 한국어 OCR + 선택적 로컬 AI)
+- 🔒 **100% 로컬 처리** — 화면 이미지는 PC 밖으로 나가지 않습니다 (Windows 내장 OCR / macOS Apple Vision + 선택적 로컬 AI)
 - 📜 **긴 화면도 한 번에** — 자동 스크롤하며 캡처해 한 장으로 이어붙입니다
 - 📋 **붙여넣기 좋게** — 엑셀에 날짜·0으로 시작하는 숫자가 망가지지 않게 서식과 함께 복사합니다
 - 🧠 **틀린 글자는 검증·보정** — 합계 검증, 열 비교, 로컬 AI로 OCR 오류를 줄이고 의심 칸은 색으로 표시합니다
@@ -38,6 +39,8 @@ API가 없는 프로그램, 복사가 막힌 웹페이지, VDI(가상 PC) 화면
 
 ## 빠른 시작
 
+### Windows
+
 **필요한 것**: Windows 10/11 · Python 3.12 · Windows 한국어 언어팩(OCR 포함, *설정 > 시간 및 언어 > 언어*)
 
 ```bash
@@ -46,6 +49,19 @@ cd gtfo-tuegeun-yojeong
 python -m pip install -r requirements.txt
 python app.py          # 또는 run.bat 더블클릭
 ```
+
+### macOS
+
+**필요한 것**: macOS 13 이상 · Python 3.10 이상(tkinter 포함, [python.org](https://www.python.org/downloads/macos/) 설치본 권장)
+
+```bash
+git clone https://github.com/dongdong-com/gtfo-tuegeun-yojeong.git
+cd gtfo-tuegeun-yojeong
+./install_mac.sh       # 한 번만: 가상환경 + 패키지 설치
+./run.command          # 실행 (Finder에서 더블클릭도 가능)
+```
+
+처음에는 *시스템 설정 > 개인정보 보호 및 보안*에서 **화면 및 시스템 오디오 녹음 · 손쉬운 사용**을 허용해야 캡처·스크롤이 됩니다. → [macOS 문서](docs/macos.md) (⚠️ 실제 Mac 검증 전)
 
 1. **(선택) 환경 설정** — 회사/환경별 값(단축 URL 서버, 상점 ID 등)은 코드에 없습니다. `local_config.example.py`를 `local_config.py`로 복사해 고치세요. 없으면 예시 값으로 동작합니다. → [설정 항목](docs/customization.md#4-회사환경-값--local_configpy)
 2. **(선택) 로컬 AI** — AI 보정·프롬프트 기능을 쓰려면 Ollama와 모델이 필요합니다. → [로컬 AI](#로컬-ai-선택)
@@ -80,7 +96,7 @@ python app.py          # 또는 run.bat 더블클릭
 | 단계 | 방법 |
 |---|---|
 | 가져오기 | 화면 영역 캡처 · 영역 지정 + 자동 스크롤 캡처 · 이미지 파일 열기 · 클립보드 이미지 붙여넣기 |
-| 읽기 | Windows 내장 OCR (배율·선명화·정밀 OCR 조절) |
+| 읽기 | Windows 내장 OCR / macOS Apple Vision (배율·선명화·정밀 OCR 조절) |
 | 확인·수정 | 텍스트 상자에서 직접 수정, 의심 칸은 색 표시, `OCR 다시`로 재인식 |
 | 내보내기 | 표 데이터 복사(엑셀 서식 포함) · 엑셀로 저장 · 이미지 복사 · PNG 저장 · **인쇄** |
 
@@ -106,15 +122,15 @@ python app.py          # 또는 run.bat 더블클릭
 
 ### 인쇄
 
-스크롤 캡처한 긴 이미지를 **글자가 없는 줄에서 쪽을 나눠** 인쇄합니다. 용지 방향 자동, 쪽번호·날짜 바닥글, Windows 인쇄 미리보기와 프린터 선택을 지원합니다. → [인쇄](docs/printing.md)
+스크롤 캡처한 긴 이미지를 **글자가 없는 줄에서 쪽을 나눠** 인쇄합니다. 용지 방향 자동, 쪽번호·날짜 바닥글, 인쇄 미리보기와 프린터 선택을 지원합니다 (Windows 인쇄 창 / macOS는 Preview 앱으로 PDF를 열어 `⌘P`). → [인쇄](docs/printing.md)
 
 ## 로컬 AI (선택)
 
 AI 기능은 **내 PC에서만 도는 [Ollama](https://ollama.com) + Gemma 4 E2B**를 씁니다. 이미지와 결과는 밖으로 나가지 않으며, 설치하지 않아도 나머지 기능은 모두 동작합니다.
 
 ```bash
-winget install Ollama.Ollama
-ollama pull gemma4:e2b        # 약 4.6GB
+winget install Ollama.Ollama      # Windows  (macOS: brew install ollama)
+ollama pull gemma4:e2b            # 약 4.6GB
 ```
 
 - **모델 파일은 이 저장소에 들어 있지 않습니다.** Ollama가 내려받아 사용자 폴더(`.ollama\models`)에 저장합니다. 저장소에는 모델을 호출하는 코드(`aillm.py`)만 있습니다.
@@ -159,6 +175,7 @@ MENU = [("내 도구", [("안녕", HelloPage)])] + MENU
 | [텍스트 캡쳐하기](docs/text-capture.md) | 옵션, 줄바꿈 모드, 정확도 |
 | [로컬 AI](docs/ai.md) | 설치, 시험 결과, 쓰는 방식, 재부팅 후 |
 | [인쇄](docs/printing.md) | 맞춤 방식, 용지 방향, 미리보기 |
+| [macOS에서 쓰기](docs/macos.md) | 설치, 권한 설정, Windows와 다른 점, 문제 해결 |
 | [커스터마이징](docs/customization.md) | 메뉴·화면·AI·설정·모양 바꾸기 |
 | [파일 구성](docs/files.md) | 파일별 역할 |
 | [변경 이력](CHANGELOG.md) | 버전별 변경 |
@@ -171,6 +188,7 @@ MENU = [("내 도구", [("안녕", HelloPage)])] + MENU
 - 화면 밖으로 잘린 열(가로 스크롤이 필요한 열)은 읽을 수 없습니다.
 - 대문자 `I`와 소문자 `l`은 화면에서 모양이 같아 서버 접속 확인 없이는 확정할 수 없습니다.
 - 인쇄는 미리보기까지 확인했고, 실제 프린터 출력은 환경에 따라 한 번 확인이 필요합니다.
+- **macOS 지원은 아직 실제 Mac에서 검증하지 못했습니다.** Apple Vision OCR, 스크롤 입력 방향, 엑셀(Mac) 붙여넣기 서식은 써 보고 확인이 필요합니다 → [macOS 문서](docs/macos.md)
 
 ## 라이선스
 

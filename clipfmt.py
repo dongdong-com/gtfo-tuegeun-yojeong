@@ -10,10 +10,12 @@ HTML을 못 읽는 프로그램(메모장 등)에는 일반 탭 구분 텍스트
 import ctypes
 import html
 import re
+import sys
 import time
 
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
+if sys.platform == "win32":
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
 
 CF_UNICODETEXT = 13
 GMEM_MOVEABLE = 0x0002
@@ -91,6 +93,10 @@ def _alloc(data: bytes):
 
 def set_clipboard(text: str, html_fragment: str | None = None):
     """text(탭 구분)를 기본으로, html_fragment가 있으면 HTML 서식도 함께 클립보드에 넣는다."""
+    if sys.platform != "win32":                      # macOS: NSPasteboard (텍스트 + public.html)
+        import sysinput_mac
+        sysinput_mac.set_text_html(text, html_fragment)
+        return
     user32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
     user32.SetClipboardData.restype = ctypes.c_void_p
     user32.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
