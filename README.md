@@ -188,6 +188,7 @@ MENU = [("내 도구", [("안녕", HelloPage)])] + MENU
 - 화면 밖으로 잘린 열(가로 스크롤이 필요한 열)은 읽을 수 없습니다.
 - 대문자 `I`와 소문자 `l`은 화면에서 모양이 같아 서버 접속 확인 없이는 확정할 수 없습니다.
 - 인쇄는 미리보기까지 확인했고, 실제 프린터 출력은 환경에 따라 한 번 확인이 필요합니다.
+- **`DLL load failed while importing _winrt: 애플리케이션 제어 정책에서 이 파일을 차단했습니다`** — Smart App Control·WDAC 같은 보안 정책이 `winrt` 패키지의 파일(`_winrt.pyd`)을 막은 것입니다. 3.3부터는 **자동으로 PowerShell 경로로 바꿔** 같은 Windows OCR을 씁니다(결과 동일). 그래도 안 되면(PowerShell까지 제한된 PC) IT 담당자에게 `_winrt.pyd` 허용을 요청하세요. 경로를 직접 고르려면 환경변수 `GTFO_OCR_BACKEND=ps`.
 - **macOS 지원은 아직 실제 Mac에서 검증하지 못했습니다.** Apple Vision OCR, 스크롤 입력 방향, 엑셀(Mac) 붙여넣기 서식은 써 보고 확인이 필요합니다 → [macOS 문서](docs/macos.md)
 
 ## 라이선스

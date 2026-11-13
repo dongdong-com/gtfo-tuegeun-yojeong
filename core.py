@@ -12,11 +12,34 @@ from PIL import Image, ImageFilter, ImageOps
 
 
 # ---------------------------------------------------------------- OCR
+_winrt_ok = None
+
+
+def _use_winrt() -> bool:
+    """winrt 파이썬 패키지를 쓸 수 있는가. 'DLL load failed while importing _winrt: 애플리케이션 제어 정책…'처럼 보안 정책이
+    .pyd를 막은 PC에서는 False → PowerShell 경로(ocr_ps)로 같은 Windows OCR을 부른다. 환경변수 GTFO_OCR_BACKEND=ps 로 강제할 수 있다."""
+    global _winrt_ok
+    if _winrt_ok is None:
+        import os
+        if os.environ.get("GTFO_OCR_BACKEND", "").lower() == "ps":
+            _winrt_ok = False
+        else:
+            try:
+                from winrt.windows.media.ocr import OcrEngine  # noqa: F401
+                _winrt_ok = True
+            except Exception:
+                _winrt_ok = False
+    return _winrt_ok
+
+
 def ocr_languages() -> list[tuple[str, str]]:
     """이 PC에 설치된 OCR 언어 [(언어 태그, 표시 이름)]. Windows 설정 > 시간 및 언어 > 언어에서 언어팩(OCR 포함)을 설치하면 늘어난다."""
     if sys.platform == "darwin":                  # macOS: Apple Vision
         import ocr_mac
         return ocr_mac.languages()
+    if not _use_winrt():
+        import ocr_ps
+        return ocr_ps.languages()
     try:
         from winrt.windows.media.ocr import OcrEngine
         return [(l.language_tag, l.display_name) for l in OcrEngine.available_recognizer_languages]
@@ -41,6 +64,9 @@ async def _recognize(img: Image.Image, scale: float = 2.0, sharp: bool = False, 
         import ocr_mac
         return [(t, x / scale, y / scale, h / scale, w / scale)
                 for t, x, y, h, w in ocr_mac.recognize(buf.getvalue(), big.width, big.height, lang)]
+    if not _use_winrt():                          # winrt가 막힌 PC: PowerShell로 같은 Windows OCR 호출
+        import ocr_ps
+        return [(t, x / scale, y / scale, h / scale, w / scale) for t, x, y, h, w in ocr_ps.recognize(buf.getvalue(), lang)]
     from winrt.windows.globalization import Language
     from winrt.windows.graphics.imaging import BitmapDecoder
     from winrt.windows.media.ocr import OcrEngine

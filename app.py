@@ -37,8 +37,8 @@ from page_vdi import VdiTablePage
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TEMPLATE = os.path.join(HERE, "문서 양식.xlsx")
 ASSETS = os.path.join(HERE, "assets")
-VERSION = "3.2"             # 기능을 고칠 때마다 올린다 (표시: 창 제목줄, 상단 헤더)
-BUILD_DATE = "2026-11-09"
+VERSION = "3.3"            # 기능을 고칠 때마다 올린다 (표시: 창 제목줄, 상단 헤더)
+BUILD_DATE = "2026-11-13"
 APP_TITLE = f"퇴근요정 ver {VERSION} (GTFO: Gracefully Terminate Formal Obligations)"
 
 if IS_WIN:

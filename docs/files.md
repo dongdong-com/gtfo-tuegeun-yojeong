@@ -23,6 +23,7 @@
 | `ocrplus.py` | 일반 텍스트·표용 정밀 OCR: 여러 배율·선명화·어둡게로 읽고 열/줄 단위로 가장 좋은 결과 선택 |
 | `sysinput_win.py` / `sysinput_mac.py` | OS별 마우스·키 입력, 창 제어, 화면 캡처, 이미지 클립보드 (Windows: user32 / macOS: Quartz) |
 | `ocr_mac.py` | macOS OCR (Apple Vision) |
+| `ocr_ps.py` | Windows OCR 대체 경로: `winrt` 패키지가 보안 정책에 막힌 PC에서 PowerShell로 같은 Windows 내장 OCR을 호출 (자동 전환) |
 | `taskbar_id.py` | 작업표시줄 고정 항목에 퇴근요정 아이콘·이름 표시 (Windows) |
 | `urlrec.py` | OCR 단어 → (순번, 원본 URL, 단축 URL) 레코드 조립 |
 | `urlfix.py` | 원본 URL 구조 보정 (호스트/경로/파라미터) |

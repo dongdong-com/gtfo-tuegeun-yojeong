@@ -2,6 +2,7 @@
 
 최신 버전이 위에 있습니다. 버전 번호는 `app.py`의 `VERSION`/`BUILD_DATE`이며 창 제목줄과 상단 헤더에 표시됩니다.
 
+- **3.3** (2026-11-13) — `winrt` 패키지가 보안 정책(Smart App Control 등)에 막혀 `DLL load failed while importing _winrt`로 OCR이 안 되던 PC 대응: 자동으로 PowerShell 경로(`ocr_ps.py`)로 같은 Windows OCR을 호출.
 - **3.2** (2026-11-09) — **macOS 지원**: Apple Vision OCR, Quartz 화면 입력/스크롤 캡처, NSPasteboard 클립보드(엑셀 서식 포함), Preview로 인쇄, 맥용 설치 스크립트(`install_mac.sh`/`run.command`). Windows 전용 코드는 `sysinput_win.py`로 분리. (macOS는 개발 PC에 없어 실기 검증 전 — [macOS 문서](docs/macos.md))
 - **3.1** (2026-11-09) — 텍스트 캡쳐하기 보정률 개선: OCR 후보 선택(한글 사이 영문·숫자 감점, H→애, 글자 단위 다수결)과 AI 보정 결과 걸러내기(율하애기보살→울하애기보살 같은 근거 없는 교체 보류, 새 글자로도 고치기 옵션).
 - **3.0** (2026-11-09) — **인쇄 기능**(스크롤/부분 캡처 이미지를 쪽 나눠 인쇄, 미리보기·프린터 선택).
